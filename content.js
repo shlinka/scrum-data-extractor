@@ -13,6 +13,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     let totalCommitted = allTables.reduce((acc, table) => acc + getTableDataByType(table, 'initial'), 0);
     let totalAdded = allTables.reduce((acc, table) => acc + getTableDataByType(table, 'added'), 0);
+    let totalAddedBugs = allTables.reduce((acc, table) => acc + getTableDataByType(table, 'added', 'Bug'), 0);
+    let totalAddedNonBugs = totalAdded - totalAddedBugs;
 
     let scrumData = {
         startDate: $('#ghx-sprint-report-meta [title="Start Date"]').text(),
@@ -22,6 +24,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         achieved: getTableDataByType(completedIssuesTable, 'all'),
         initiallyAchieved: getTableDataByType(completedIssuesTable, 'initial'),
         added: totalAdded,
+        addedBugs: totalAddedBugs,
+        addedNonBugs: totalAddedNonBugs,
         removed: getTableDataByType(removedIssuesTable, 'all'),
     };
 
@@ -33,9 +37,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.runtime.sendMessage({message: 'data_extracted', scrumData: scrumData});
 });
 
-let getTableDataByType = (table, dataType) => {
+let getTableDataByType = (table, dataType, ticketType = null) => {
     if (dataType === 'added') {
-        return getTableSum(table, true);
+        return getTableSum(table, true, ticketType);
     }
 
     let all = getTableSum(table);
@@ -46,7 +50,7 @@ let getTableDataByType = (table, dataType) => {
     return all - getTableSum(table, true);
 };
 
-let getTableSum = (table, onlyAdded = false) => {
+let getTableSum = (table, onlyAdded = false, ticketType = null) => {
     let selector = onlyAdded ? '.ghx-added ' : '';
     selector += '.ghx-right.ghx-minimal.ghx-nowrap';
 
@@ -54,6 +58,10 @@ let getTableSum = (table, onlyAdded = false) => {
         let currentValue = $(item).find('.ghx-current-value').toArray().length > 0 ? $(item).find('.ghx-current-value').text() : $(item).text();
 
         if (currentValue === '-' || currentValue === '0') {
+            return acc;
+        }
+
+        if (ticketType && $($(item).parent().find('.ghx-nowrap')[1]).text() != ticketType) {
             return acc;
         }
 

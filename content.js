@@ -17,8 +17,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let totalAddedNonBugs = totalAdded - totalAddedBugs;
 
     let scrumData = {
-        startDate: $('#ghx-sprint-report-meta [title="Start Date"]').text(),
-        endDate: $('#ghx-sprint-report-meta [title="Completion Date"]').text(),
+        startDate: $($('#sprint-meta-details .secondary-value')[0]).text(),
+        endDate: $($('#sprint-meta-details .secondary-value')[2]).text(),
 
         committed: totalCommitted,
         achieved: getTableDataByType(completedIssuesTable, 'all'),
@@ -30,9 +30,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     };
 
     scrumData.changed = scrumData.added - scrumData.removed;
+    scrumData.absoluteChanged = scrumData.added + scrumData.removed;
     scrumData.productivity = parseInt(scrumData.achieved / scrumData.committed * 100) + '%';
     scrumData.effectivity = parseInt(scrumData.initiallyAchieved / scrumData.committed * 100) + '%';
     scrumData.entropy = parseInt(scrumData.changed / scrumData.committed * 100) + '%';
+    scrumData.absoluteEntropy = parseInt(scrumData.absoluteChanged / scrumData.committed * 100) + '%';
 
     chrome.runtime.sendMessage({message: 'data_extracted', scrumData: scrumData});
 });

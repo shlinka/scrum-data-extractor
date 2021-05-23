@@ -27,6 +27,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         addedBugs: totalAddedBugs,
         addedNonBugs: totalAddedNonBugs,
         removed: getTableDataByType(removedIssuesTable, 'all'),
+
+        storiesCommitted: allTables.reduce((acc, table) => acc + getTableDataByType(table, 'all', 'Story', 'tasks'), 0),
+        storiesDelivered: getTableDataByType(completedIssuesTable, 'all', 'Story', 'tasks'),
+        storiesAdded: allTables.reduce((acc, table) => acc + getTableDataByType(table, 'added', 'Story', 'tasks'), 0),
     };
 
     scrumData.changed = scrumData.added - scrumData.removed;
@@ -36,34 +40,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     scrumData.entropy = parseInt(scrumData.changed / scrumData.committed * 100) + '%';
     scrumData.absoluteEntropy = parseInt(scrumData.absoluteChanged / scrumData.committed * 100) + '%';
 
+    scrumData.storyProductivity = parseInt(scrumData.storiesDelivered / scrumData.storiesCommitted * 100) + '%';
+
     chrome.runtime.sendMessage({message: 'data_extracted', scrumData: scrumData});
 });
 
-let getTableDataByType = (table, dataType, ticketType = null) => {
+let getTableDataByType = (table, dataType, ticketType = null, countType = 'points') => {
     if (dataType === 'added') {
-        return getTableSum(table, true, ticketType);
+        return getTableSum(table, true, ticketType, countType);
     }
 
-    let all = getTableSum(table);
+    let all = getTableSum(table, false, ticketType, countType);
     if (dataType === 'all') {
         return all;
     }
 
-    return all - getTableSum(table, true);
+    return all - getTableSum(table, true, ticketType, countType);
 };
 
-let getTableSum = (table, onlyAdded = false, ticketType = null) => {
+let getTableSum = (table, onlyAdded = false, ticketType = null, countType = 'points') => {
     let selector = onlyAdded ? '.ghx-added ' : '';
     selector += '.ghx-right.ghx-minimal.ghx-nowrap';
 
     return $(table).find(selector).toArray().splice(1).reduce((acc, item) => {
-        let currentValue = $(item).find('.ghx-current-value').toArray().length > 0 ? $(item).find('.ghx-current-value').text() : $(item).text();
-
-        if (currentValue === '-' || currentValue === '0') {
+        if (ticketType && $($(item).parent().find('.ghx-nowrap')[1]).text() != ticketType) {
             return acc;
         }
 
-        if (ticketType && $($(item).parent().find('.ghx-nowrap')[1]).text() != ticketType) {
+        if (countType === 'tasks') {
+            return acc + 1;
+        }
+
+        let currentValue = $(item).find('.ghx-current-value').toArray().length > 0 ? $(item).find('.ghx-current-value').text() : $(item).text();
+        if (currentValue === '-' || currentValue === '0') {
             return acc;
         }
 
